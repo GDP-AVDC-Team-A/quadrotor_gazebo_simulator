@@ -27,6 +27,7 @@
 #include <dynamic_reconfigure/server.h>
 #include "geometry_msgs/TwistStamped.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "mavros_msgs/Thrust.h"
 #include <motor_speed_controller/PIDAttitudeConfig.h>
 #include <motor_speed_controller/PID_attitude_controller.h>
 
@@ -50,6 +51,9 @@ class PIDAttitudeControllerNode
 
   // subscribers
   ros::Subscriber command_roll_pitch_yawrate_thrust_sub_;
+  ros::Subscriber command_thrust_sub_;
+  ros::Subscriber command_pose_sub_;
+  ros::Subscriber command_speed_sub_;
   ros::Subscriber self_localization_pose_sub_;
   ros::Subscriber self_localization_speed_sub_;
 
@@ -58,14 +62,19 @@ class PIDAttitudeControllerNode
   std::string motor_speed_topic_str;
   std::string roll_pitch_yawrate_thrust_topic_str;
 
+  float last_thrust = 0;
   bool received_pose;
+  float roll,pitch,yaw,droll,dpitch,dyaw;
   geometry_msgs::PoseStamped self_localization_pose_msg;
   geometry_msgs::TwistStamped self_localization_speed_msg;
 
   bool got_first_attitude_command_;
 
-  void CommandRollPitchYawRateThrustCallback(
-      const mav_msgs::RollPitchYawrateThrustConstPtr& roll_pitch_yawrate_thrust_reference);
+  void CommandRollPitchYawRateThrustCallback(const mav_msgs::RollPitchYawrateThrustConstPtr& roll_pitch_yawrate_thrust_reference);
+  void CommandThrustCallback(const mavros_msgs::ThrustPtr& thrust_reference);
+  void CommandPoseCallback(const geometry_msgs::PoseStampedPtr& pose_reference);
+  void CommandSpeedCallback(const geometry_msgs::TwistStampedPtr& speed_reference);
+  
   void processOdometry(mav_msgs::EigenOdometry odometry);
 
   void selfLocalizationPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);

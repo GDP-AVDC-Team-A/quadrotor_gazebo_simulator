@@ -35,9 +35,21 @@ PIDAttitudeControllerNode::PIDAttitudeControllerNode(const ros::NodeHandle& nh,
   ros::param::get("~motor_speed_topic", motor_speed_topic_str);
   ros::param::get("~roll_pitch_yawrate_thrust_topic", roll_pitch_yawrate_thrust_topic_str);
 
-  command_roll_pitch_yawrate_thrust_sub_ = nh_.subscribe(
-      roll_pitch_yawrate_thrust_topic_str, 1,
-      &PIDAttitudeControllerNode::CommandRollPitchYawRateThrustCallback, this, ros::TransportHints().tcpNoDelay());
+  //command_roll_pitch_yawrate_thrust_sub_ = nh_.subscribe(
+  //    roll_pitch_yawrate_thrust_topic_str, 1,
+  //    &PIDAttitudeControllerNode::CommandRollPitchYawRateThrustCallback, this, ros::TransportHints().tcpNoDelay());
+
+  command_thrust_sub_ = nh_.subscribe(
+      "actuator_command/thrust", 1,
+      &PIDAttitudeControllerNode::CommandThrustCallback, this, ros::TransportHints().tcpNoDelay());
+
+  command_pose_sub_ = nh_.subscribe(
+      "actuator_command/pose", 1,
+      &PIDAttitudeControllerNode::CommandPoseCallback, this, ros::TransportHints().tcpNoDelay());
+
+  command_speed_sub_ = nh_.subscribe(
+      "actuator_command/speed", 1,
+      &PIDAttitudeControllerNode::CommandSpeedCallback, this, ros::TransportHints().tcpNoDelay());
   
   self_localization_pose_sub_ = nh_.subscribe(self_localization_pose_topic_str, 1,
                                 &PIDAttitudeControllerNode::selfLocalizationPoseCallback, this,
@@ -61,9 +73,7 @@ PIDAttitudeControllerNode::~PIDAttitudeControllerNode()
 }
 
 void PIDAttitudeControllerNode::CommandRollPitchYawRateThrustCallback(
-    const mav_msgs::RollPitchYawrateThrustConstPtr& roll_pitch_yawrate_thrust_reference)
-{
-
+    const mav_msgs::RollPitchYawrateThrustConstPtr& roll_pitch_yawrate_thrust_reference){
   PID_attitude_controller_.SetDesiredAttitude(roll_pitch_yawrate_thrust_reference->roll,
                                               roll_pitch_yawrate_thrust_reference->pitch,
                                               roll_pitch_yawrate_thrust_reference->yaw_rate,
@@ -71,6 +81,33 @@ void PIDAttitudeControllerNode::CommandRollPitchYawRateThrustCallback(
   got_first_attitude_command_ = true;
 }
 
+void PIDAttitudeControllerNode::CommandPoseCallback(
+    const geometry_msgs::PoseStampedPtr& pose_reference){
+  tf::Matrix3x3 m(tf::Quaternion(pose_reference->pose.orientation.x, pose_reference->pose.orientation.y, 
+  pose_reference->pose.orientation.z, pose_reference->pose.orientation.w));
+  double y, p, r;
+  m.getEulerYPR(y, p, r);
+  roll = r;
+  pitch = p;
+  yaw = y;
+  PID_attitude_controller_.SetDesiredAttitude(r, p, dyaw, last_thrust);
+  //PID_attitude_controller_.SetDesiredAttitude(pose_reference->pose.orientation.x, pose_reference->pose.orientation.y, pose_reference->pose.orientation.z, last_thrust/2);
+  got_first_attitude_command_ = true;
+}
+
+void PIDAttitudeControllerNode::CommandSpeedCallback(
+    const geometry_msgs::TwistStampedPtr& speed_reference){
+  dpitch = speed_reference->twist.angular.x;
+  droll = speed_reference->twist.angular.y;
+  dyaw = speed_reference->twist.angular.z;
+  //PID_attitude_controller_.SetDesiredAttitude(pose_reference->pose.orientation.x, pose_reference->pose.orientation.y, pose_reference->pose.orientation.z, last_thrust/2);
+  got_first_attitude_command_ = true;
+}
+
+void PIDAttitudeControllerNode::CommandThrustCallback(
+    const mavros_msgs::ThrustPtr& thrust_reference){
+  last_thrust = thrust_reference->thrust;
+}
 
 void PIDAttitudeControllerNode::selfLocalizationPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg){
   self_localization_pose_msg = *msg;

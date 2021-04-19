@@ -17,6 +17,7 @@
   <depend>std_msgs</depend>
   <depend>cmake_modules</depend>
   <depend>geometry_msgs</depend>
+  <depend>mavros</depend>
   <depend>roscpp</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>tf</depend>
